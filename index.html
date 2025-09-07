@@ -362,6 +362,7 @@
                 const response = await fetch(gasWebAppUrl, {
                     method: 'POST',
                     mode: 'cors', // Required for cross-domain requests
+                    redirect: 'follow', // Follow redirects, important for GAS
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Use text/plain to avoid preflight
                     body: JSON.stringify(payload)
                 });
@@ -808,7 +809,24 @@
             
             students.forEach(student => {
                 const row = document.createElement('tr');
-                row.innerHTML = `<td class="p-3">${student.studentid}</td><td class="p-3">${student.name}</td><td class="p-3">${student.class}</td><td class="p-3 text-center"><button onclick="openStudentModal(students.find(s => s.rowIndex === ${student.rowIndex}))" class="text-blue-600 p-1">แก้ไข</button><button onclick="deleteStudent(${student.rowIndex})" class="text-red-600 p-1 ml-2">ลบ</button></td>`;
+                // IMPORTANT CHANGE: Do not use complex JSON.stringify in innerHTML
+                row.innerHTML = `<td class="p-3">${student.studentid}</td><td class="p-3">${student.name}</td><td class="p-3">${student.class}</td><td class="p-3 text-center"></td>`;
+                
+                const actionsCell = row.cells[3];
+
+                const editButton = document.createElement('button');
+                editButton.className = 'text-blue-600 p-1';
+                editButton.textContent = 'แก้ไข';
+                // Find the student object from the main array to avoid stringify issues
+                editButton.onclick = () => openStudentModal(students.find(s => s.rowIndex === student.rowIndex));
+                
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'text-red-600 p-1 ml-2';
+                deleteButton.textContent = 'ลบ';
+                deleteButton.onclick = () => deleteStudent(student.rowIndex);
+
+                actionsCell.appendChild(editButton);
+                actionsCell.appendChild(deleteButton);
                 tableBody.appendChild(row);
             });
         }
