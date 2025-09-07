@@ -206,10 +206,11 @@
                     <div id="report-results-container" class="hidden">
                         <h3 class="text-lg font-semibold mt-6 mb-2" id="report-title">ผลลัพธ์</h3>
                         <div class="overflow-x-auto">
-                            <table class="w-full min-w-[800px]">
+                            <table class="w-full min-w-[900px]">
                                 <thead class="bg-gray-50 dark:bg-gray-700/50">
                                     <tr>
                                         <th class="p-3 text-left">ชั้น</th>
+                                        <th class="p-3 text-left">รายวิชา</th>
                                         <th class="p-3 text-center">จำนวนนักเรียนทั้งหมด</th>
                                         <th class="p-3 text-center">มา</th>
                                         <th class="p-3 text-center">สาย</th>
@@ -456,7 +457,7 @@
             const uniqueDailyChecks = new Set();
             
             filteredAttendance.forEach(rec => {
-                const key = `${rec.timestamp.toDateString()}-${rec.studentid}`;
+                const key = `${rec.timestamp.toDateString()}-${rec.studentid}-${rec.subject}`; // Make key unique per subject
                 if (uniqueDailyChecks.has(key)) return;
 
                 if (rec.status === 'มาเรียน') {
@@ -498,7 +499,7 @@
                 const studentClass = rec.class;
                 if (!classSummary[studentClass]) return;
                 
-                const key = `${rec.timestamp.toDateString()}-${rec.studentid}`;
+                const key = `${rec.timestamp.toDateString()}-${rec.studentid}-${rec.subject}`; // Make key unique per subject
                 if (uniqueDailyChecks.has(key)) return;
 
                 if (rec.status === 'มาเรียน') {
@@ -522,10 +523,9 @@
                 const data = classSummary[className];
                 const totalPresent = data.present + data.late;
                 const totalStudentsInClass = totalStudentsByClass[className] || 0;
-                const periodDays = new Set(filteredAttendance.map(r => r.timestamp.toDateString())).size || 1;
-                const totalPossibleAttendances = totalStudentsInClass * periodDays;
                 
-                const attendancePercent = totalPossibleAttendances > 0 ? ((totalPresent / totalPossibleAttendances) * 100).toFixed(2) : "0.00";
+                // This percentage is now an approximation, as it doesn't account for subjects
+                const attendancePercent = totalStudentsInClass > 0 ? ((totalPresent / totalStudentsInClass) * 100).toFixed(2) : "0.00";
                 
                 const row = `
                     <tr class="dark:border-gray-700">
@@ -646,8 +646,13 @@
             const recordsToSave = [];
             const timestamp = new Date().toISOString();
             const location = currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A';
+            
+            const studentsInView = [...document.querySelectorAll('#absent-list > div')].map(div => {
+                const studentId = div.querySelector('.text-sm.text-gray-500').textContent;
+                return students.find(s => s.studentid == studentId);
+            }).filter(Boolean);
 
-            students.forEach(student => {
+            studentsInView.forEach(student => {
                 if (checkedInToday.has(student.studentid)) {
                     const record = checkedInToday.get(student.studentid);
                     record.subject = currentSubject; // Add subject
@@ -901,7 +906,7 @@
             const linePreview = document.getElementById('line-preview-data');
             const sendLineBtn = document.getElementById('send-line-btn');
 
-            reportTableBody.innerHTML = '<tr><td colspan="8" class="text-center p-8"><div class="loader w-8 h-8 rounded-full border-4 border-gray-200 mx-auto"></div></td></tr>';
+            reportTableBody.innerHTML = '<tr><td colspan="9" class="text-center p-8"><div class="loader w-8 h-8 rounded-full border-4 border-gray-200 mx-auto"></div></td></tr>';
             linePreview.innerHTML = '<p class="text-gray-500">กำลังโหลดข้อมูล...</p>';
             sendLineBtn.disabled = true;
             document.getElementById('report-results-container').classList.remove('hidden');
@@ -920,13 +925,24 @@
 
                     reportTableBody.innerHTML = '';
                     if (summary.length === 0) {
-                        reportTableBody.innerHTML = '<tr><td colspan="8" class="text-center p-8 text-gray-500">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
+                        reportTableBody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-gray-500">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
                         linePreview.innerHTML = '<p class="text-gray-500">ไม่พบข้อมูล</p>';
                         return;
                     }
 
                     summary.forEach(item => {
-                        reportTableBody.innerHTML += `<tr><td class="p-3 text-left">${item.class}</td><td class="p-3 text-center">${item.totalStudents}</td><td class="p-3 text-center">${item.present}</td><td class="p-3 text-center">${item.late}</td><td class="p-3 text-center">${item.absent}</td><td class="p-3 text-center">${item.leave}</td><td class="p-3 text-center font-bold">${item.totalPresent}</td><td class="p-3 text-center font-bold">${item.attendancePercent}%</td></tr>`;
+                        const row = `<tr>
+                                <td class="p-3 text-left">${item.class}</td>
+                                <td class="p-3 text-left">${item.subject}</td>
+                                <td class="p-3 text-center">${item.totalStudents}</td>
+                                <td class="p-3 text-center">${item.present}</td>
+                                <td class="p-3 text-center">${item.late}</td>
+                                <td class="p-3 text-center">${item.absent}</td>
+                                <td class="p-3 text-center">${item.leave}</td>
+                                <td class="p-3 text-center font-bold">${item.totalPresent}</td>
+                                <td class="p-3 text-center font-bold">${item.attendancePercent}%</td>
+                            </tr>`;
+                        reportTableBody.innerHTML += row;
                     });
                     
                     linePreview.innerHTML = lineData.map(d => `<div>${d.date} | ${d.class} | ${d.subject} | ${d.id} ${d.name} | ${d.status}</div>`).join('') || '<p class="text-gray-500">ไม่มีข้อมูลรายบุคคล</p>';
@@ -936,7 +952,7 @@
                     throw new Error(response.error);
                 }
             } catch(err) {
-                reportTableBody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-red-500">เกิดข้อผิดพลาด: ${err}</td></tr>`;
+                reportTableBody.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-red-500">เกิดข้อผิดพลาด: ${err}</td></tr>`;
                 linePreview.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาด</p>`;
             }
         }
