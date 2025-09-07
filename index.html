@@ -68,9 +68,9 @@
                         <input type="date" id="dashboard-date" class="border rounded-lg p-2 w-full sm:w-auto bg-transparent dark:text-gray-200 dark:border-gray-600">
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-center">
-                         <div class="bg-blue-100 dark:bg-blue-900/50 p-4 rounded-lg"><h3 class="text-gray-600 dark:text-gray-400">มาเรียน</h3><p id="stat-present" class="text-3xl font-bold text-blue-700 dark:text-blue-400">0</p></div>
-                        <div class="bg-yellow-100 dark:bg-yellow-900/50 p-4 rounded-lg"><h3 class="text-gray-600 dark:text-gray-400">มาสาย</h3><p id="stat-late" class="text-3xl font-bold text-yellow-700 dark:text-yellow-400">0</p></div>
-                        <div class="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg"><h3 class="text-gray-600 dark:text-gray-400">ขาด/ลา</h3><p id="stat-absent" class="text-3xl font-bold text-red-700 dark:text-red-400">0</p></div>
+                         <div class="bg-blue-100 dark:bg-blue-900/50 p-4 rounded-lg"><h3 class="text-gray-600 dark:text-gray-400">มาเรียน (รวมทุกวิชา)</h3><p id="stat-present" class="text-3xl font-bold text-blue-700 dark:text-blue-400">0</p></div>
+                        <div class="bg-yellow-100 dark:bg-yellow-900/50 p-4 rounded-lg"><h3 class="text-gray-600 dark:text-gray-400">มาสาย (รวมทุกวิชา)</h3><p id="stat-late" class="text-3xl font-bold text-yellow-700 dark:text-yellow-400">0</p></div>
+                        <div class="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg"><h3 class="text-gray-600 dark:text-gray-400">ขาด/ลา (รวมทุกวิชา)</h3><p id="stat-absent" class="text-3xl font-bold text-red-700 dark:text-red-400">0</p></div>
                     </div>
 
                     <!-- Chart and Summary Container -->
@@ -83,10 +83,10 @@
                             </div>
                         </div>
 
-                        <!-- Class Summary Table -->
+                        <!-- Subject Summary Table -->
                         <div class="lg:col-span-3 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
                             <div class="flex flex-col sm:flex-row justify-between items-center mb-3 gap-2">
-                                <h3 class="font-semibold text-center">ภาพรวมการมาเรียน (รายชั้น)</h3>
+                                <h3 class="font-semibold text-center">ภาพรวมการมาเรียน (รายวิชา)</h3>
                                 <div class="flex-shrink-0">
                                     <select id="summary-period" class="border rounded-lg p-1.5 bg-transparent dark:text-gray-200 dark:border-gray-600 text-sm">
                                         <option value="day">รายวัน</option>
@@ -99,14 +99,13 @@
                                 <table class="w-full text-sm text-left">
                                     <thead class="bg-gray-200 dark:bg-gray-600 sticky top-0">
                                         <tr>
-                                            <th class="p-2">ชั้น</th>
+                                            <th class="p-2">รายวิชา</th>
                                             <th class="p-2 text-center">มา</th>
                                             <th class="p-2 text-center">สาย</th>
                                             <th class="p-2 text-center">ขาด/ลา</th>
-                                            <th class="p-2 text-center">% มาเรียน</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="class-summary-table-body">
+                                    <tbody id="subject-summary-table-body">
                                         <!-- Data will be inserted here by JavaScript -->
                                     </tbody>
                                 </table>
@@ -227,7 +226,7 @@
                         
                         <div class="mt-6 flex flex-col md:flex-row items-start gap-4">
                             <div class="w-full md:w-1/2">
-                                <h4 class="font-semibold mb-2">ข้อมูลรายบุคคล (สำหรับส่ง LINE)</h4>
+                                <h4 class="font-semibold mb-2">ข้อมูลรายบุคคล (สำหรับส่ง LINE - เฉพาะคนขาด/ลา)</h4>
                                 <div id="line-preview-data" class="max-h-60 overflow-y-auto custom-scrollbar text-sm p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
                                     <p class="text-gray-500">กรุณากด "แสดงรายงาน" เพื่อดูข้อมูล</p>
                                 </div>
@@ -430,113 +429,56 @@
             }
         }
 
-        function renderDashboard() {
-            const selectedDate = new Date(document.getElementById('dashboard-date').value);
+        async function renderDashboard() {
+            const selectedDate = document.getElementById('dashboard-date').value;
             const period = document.getElementById('summary-period').value;
 
-            let filteredAttendance = [];
-            if (period === 'day') {
-                filteredAttendance = attendance.filter(rec => rec.timestamp.toDateString() === selectedDate.toDateString());
-            } else if (period === 'week') {
-                const startOfWeek = new Date(selectedDate);
-                startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
-                startOfWeek.setHours(0,0,0,0);
-                const endOfWeek = new Date(startOfWeek);
-                endOfWeek.setDate(startOfWeek.getDate() + 6);
-                endOfWeek.setHours(23, 59, 59, 999);
-                filteredAttendance = attendance.filter(rec => rec.timestamp >= startOfWeek && rec.timestamp <= endOfWeek);
-            } else if (period === 'month') {
-                filteredAttendance = attendance.filter(rec =>
-                    rec.timestamp.getFullYear() === selectedDate.getFullYear() &&
-                    rec.timestamp.getMonth() === selectedDate.getMonth()
-                );
-            }
-
+            // --- RENDER PIE CHART AND OVERALL STATS ---
+            let filteredForOverall;
+            if (period === 'day') { filteredForOverall = attendance.filter(rec => new Date(rec.timestamp).toDateString() === new Date(selectedDate).toDateString()); } 
+            else if (period === 'week') { const startOfWeek = new Date(selectedDate); startOfWeek.setDate(new Date(selectedDate).getDate() - new Date(selectedDate).getDay()); startOfWeek.setHours(0,0,0,0); const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6); endOfWeek.setHours(23, 59, 59, 999); filteredForOverall = attendance.filter(rec => rec.timestamp >= startOfWeek && rec.timestamp <= endOfWeek); }
+            else { filteredForOverall = attendance.filter(rec => rec.timestamp.getFullYear() === new Date(selectedDate).getFullYear() && rec.timestamp.getMonth() === new Date(selectedDate).getMonth()); }
+            
             const lateTime = new Date(); lateTime.setHours(8, 30, 0);
             let onTimeCount = 0, lateCount = 0, absentOrLeaveCount = 0;
             const uniqueDailyChecks = new Set();
             
-            filteredAttendance.forEach(rec => {
+            filteredForOverall.forEach(rec => {
                 const key = `${rec.timestamp.toDateString()}-${rec.studentid}-${rec.subject}`; // Make key unique per subject
                 if (uniqueDailyChecks.has(key)) return;
-
-                if (rec.status === 'มาเรียน') {
-                    const checkinTime = rec.timestamp;
-                    const isLate = checkinTime.getHours() > lateTime.getHours() || (checkinTime.getHours() === lateTime.getHours() && checkinTime.getMinutes() > lateTime.getMinutes());
-                    if (isLate) lateCount++; else onTimeCount++;
-                } else {
-                    absentOrLeaveCount++;
-                }
+                if (rec.status === 'มาเรียน') { const isLate = rec.timestamp.getHours() > lateTime.getHours() || (rec.timestamp.getHours() === lateTime.getHours() && rec.timestamp.getMinutes() > lateTime.getMinutes()); if (isLate) lateCount++; else onTimeCount++; }
+                else { absentOrLeaveCount++; }
                 uniqueDailyChecks.add(key);
             });
             
             document.getElementById('stat-present').innerText = onTimeCount + lateCount;
             document.getElementById('stat-late').innerText = lateCount;
             document.getElementById('stat-absent').innerText = absentOrLeaveCount;
-            
             renderPieChart(onTimeCount, lateCount, absentOrLeaveCount);
-            renderClassSummaryTable(filteredAttendance);
-        }
-
-        function renderClassSummaryTable(filteredAttendance) {
-            const classSummary = {};
-            const totalStudentsByClass = {};
-
-            students.forEach(student => {
-                if (!totalStudentsByClass[student.class]) totalStudentsByClass[student.class] = 0;
-                totalStudentsByClass[student.class]++;
-            });
-
-            Object.keys(totalStudentsByClass).forEach(className => {
-                if(!className) return;
-                classSummary[className] = { present: 0, late: 0, absentOrLeave: 0 };
-            });
-
-            const lateTime = new Date(); lateTime.setHours(8, 30, 0);
-            const uniqueDailyChecks = new Set();
-
-            filteredAttendance.forEach(rec => {
-                const studentClass = rec.class;
-                if (!classSummary[studentClass]) return;
-                
-                const key = `${rec.timestamp.toDateString()}-${rec.studentid}-${rec.subject}`; // Make key unique per subject
-                if (uniqueDailyChecks.has(key)) return;
-
-                if (rec.status === 'มาเรียน') {
-                    const isLate = rec.timestamp.getHours() > lateTime.getHours() || (rec.timestamp.getHours() === lateTime.getHours() && rec.timestamp.getMinutes() > lateTime.getMinutes());
-                    if(isLate) classSummary[studentClass].late++; else classSummary[studentClass].present++;
-                } else if (rec.status === 'ขาด' || rec.status === 'ลา') {
-                    classSummary[studentClass].absentOrLeave++;
-                }
-                uniqueDailyChecks.add(key);
-            });
-
-            const tableBody = document.getElementById('class-summary-table-body');
-            tableBody.innerHTML = '';
-
-            if (Object.keys(classSummary).length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-gray-500">ไม่มีข้อมูล</td></tr>';
-                return;
-            }
             
-            Object.keys(classSummary).sort().forEach(className => {
-                const data = classSummary[className];
-                const totalPresent = data.present + data.late;
-                const totalStudentsInClass = totalStudentsByClass[className] || 0;
-                
-                // This percentage is now an approximation, as it doesn't account for subjects
-                const attendancePercent = totalStudentsInClass > 0 ? ((totalPresent / totalStudentsInClass) * 100).toFixed(2) : "0.00";
-                
-                const row = `
-                    <tr class="dark:border-gray-700">
-                        <td class="p-2 font-medium">${className}</td>
-                        <td class="p-2 text-center">${data.present}</td>
-                        <td class="p-2 text-center">${data.late}</td>
-                        <td class="p-2 text-center">${data.absentOrLeave}</td>
-                        <td class="p-2 text-center font-semibold">${attendancePercent}%</td>
-                    </tr>`;
-                tableBody.innerHTML += row;
-            });
+            // --- RENDER SUBJECT SUMMARY TABLE ---
+            try {
+                const response = await apiCall({ action: 'getDashboardSummary', data: { date: selectedDate, period: period } });
+                const tableBody = document.getElementById('subject-summary-table-body');
+                tableBody.innerHTML = '';
+                if (response.success && response.data.length > 0) {
+                     response.data.forEach(item => {
+                        const row = `
+                            <tr class="dark:border-gray-700">
+                                <td class="p-2 font-medium">${item.subject}</td>
+                                <td class="p-2 text-center">${item.present}</td>
+                                <td class="p-2 text-center">${item.late}</td>
+                                <td class="p-2 text-center">${item.absentOrLeave}</td>
+                            </tr>`;
+                        tableBody.innerHTML += row;
+                    });
+                } else {
+                     tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-4 text-gray-500">ไม่มีข้อมูลการเช็คชื่อในวันนี้</td></tr>';
+                }
+            } catch(error) {
+                console.error("Error fetching dashboard summary:", error);
+                document.getElementById('subject-summary-table-body').innerHTML = '<tr><td colspan="4" class="text-center p-4 text-red-500">โหลดข้อมูลล้มเหลว</td></tr>';
+            }
         }
         
         function renderPieChart(onTime, late, absent) {
@@ -648,14 +590,16 @@
             const location = currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A';
             
             const studentsInView = [...document.querySelectorAll('#absent-list > div')].map(div => {
-                const studentId = div.querySelector('.text-sm.text-gray-500').textContent;
+                const studentIdElement = div.querySelector('.text-sm.text-gray-500');
+                if(!studentIdElement) return null;
+                const studentId = studentIdElement.textContent;
                 return students.find(s => s.studentid == studentId);
             }).filter(Boolean);
 
             studentsInView.forEach(student => {
                 if (checkedInToday.has(student.studentid)) {
                     const record = checkedInToday.get(student.studentid);
-                    record.subject = currentSubject; // Add subject
+                    record.subject = currentSubject;
                     recordsToSave.push(record);
                 } else {
                     recordsToSave.push({ id: student.studentid, name: student.name, class: student.class, subject: currentSubject, timestamp, location, status: 'ขาด' });
@@ -945,9 +889,9 @@
                         reportTableBody.innerHTML += row;
                     });
                     
-                    linePreview.innerHTML = lineData.map(d => `<div>${d.date} | ${d.class} | ${d.subject} | ${d.id} ${d.name} | ${d.status}</div>`).join('') || '<p class="text-gray-500">ไม่มีข้อมูลรายบุคคล</p>';
+                    linePreview.innerHTML = lineData.map(d => `<div>${d.date} | ${d.class} | ${d.subject} | ${d.id} ${d.name} | ${d.status}</div>`).join('') || '<p class="text-gray-500">ไม่มีนักเรียนที่ขาดหรือลา</p>';
                     document.getElementById('report-title').innerText = `ผลลัพธ์สำหรับวันที่ ${new Date(reportData.dateFilter).toLocaleDateString('th-TH')}`;
-                    sendLineBtn.disabled = lineData.length === 0;
+                    sendLineBtn.disabled = false; // Always enable the button
                 } else {
                     throw new Error(response.error);
                 }
@@ -958,8 +902,8 @@
         }
 
         async function sendReportToLine() {
-            if (!lastReportDataForLine || lastReportDataForLine.length === 0) {
-                alert('ไม่มีข้อมูลสำหรับส่ง LINE');
+            if (!lastReportDataForLine) {
+                alert('กรุณาสร้างรายงานก่อนส่ง');
                 return;
             }
             
@@ -969,7 +913,7 @@
 
             try {
                 const response = await apiCall({ action: 'sendLineNotification', data: lastReportDataForLine });
-                alert(response.success ? 'ส่งรายงานเข้า LINE สำเร็จ!' : `เกิดข้อผิดพลาดในการส่ง LINE: ${response.error}`);
+                alert(response.message); // Show the message from server, whether success or "no absentees"
             } catch(err) {
                  alert(`เกิดข้อผิดพลาดรุนแรงในการส่ง LINE: ${err.message}`);
             } finally {
