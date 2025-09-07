@@ -4,14 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบเช็คชื่อนักเรียนอัจฉริยะ</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- face-api.js -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- Custom styles -->
     <style>
        body { font-family: 'Inter', 'Kanit', sans-serif; }
         .loader { border-top-color: #3b82f6; animation: spin 1s linear infinite; }
@@ -30,8 +35,10 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
+    <!-- Main Container -->
     <div class="container mx-auto p-4 md:p-6">
 
+        <!-- Header -->
         <header class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
              <div class="flex items-center space-x-3">
                 <i data-lucide="scan-face" class="text-blue-600 w-8 h-8"></i>
@@ -51,7 +58,9 @@
             </div>
         </header>
 
+        <!-- Dynamic Content Area -->
         <main id="main-content">
+            <!-- Dashboard Tab (หน้าแรก) -->
             <div id="content-dashboard" class="space-y-6">
                  <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
                      <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
@@ -63,7 +72,9 @@
                         <div class="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg"><h3 class="text-gray-600 dark:text-gray-400">ขาด/ลา (รวมทุกวิชา)</h3><p id="stat-absent" class="text-3xl font-bold text-red-700 dark:text-red-400">0</p></div>
                     </div>
 
+                    <!-- Chart and Summary Container -->
                     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-6">
+                        <!-- Pie Chart -->
                         <div class="lg:col-span-2 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
                             <h3 class="font-semibold mb-2 text-center">สรุปการเข้าเรียนภาพรวม</h3>
                             <div class="max-w-[250px] mx-auto">
@@ -71,6 +82,7 @@
                             </div>
                         </div>
 
+                        <!-- Subject Summary Table -->
                         <div class="lg:col-span-3 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
                             <div class="flex flex-col sm:flex-row justify-between items-center mb-3 gap-2">
                                 <h3 class="font-semibold text-center">ภาพรวมการมาเรียน (รายวิชา)</h3>
@@ -92,7 +104,8 @@
                                         </tr>
                                     </thead>
                                     <tbody id="subject-summary-table-body">
-                                        </tbody>
+                                        <!-- Data will be inserted here by JavaScript -->
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
@@ -105,7 +118,9 @@
                 </div>
             </div>
 
+            <!-- Attendance Tab -->
             <div id="content-attendance" class="hidden space-y-6">
+                <!-- Scan Check-in -->
                 <div id="scan-checkin-container">
                     <div id="start-scan-section" class="text-center bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
                         <h2 class="text-2xl font-bold mb-4">เริ่มการเช็คชื่อ</h2>
@@ -157,6 +172,7 @@
                     </div>
                 </div>
 
+                <!-- Manual Check-in -->
                 <div id="manual-checkin-container" class="hidden bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md space-y-4">
                     <h2 class="text-2xl font-bold mb-4">เช็คชื่อด้วยตนเอง</h2>
                      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -182,13 +198,16 @@
 
             </div>
 
+            <!-- Manage Students Tab -->
             <div id="content-manage" class="hidden">
                  <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md"><div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4"><h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300">จัดการข้อมูลนักเรียน</h2><button onclick="openStudentModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 w-full sm:w-auto justify-center"><i data-lucide="user-plus"></i><span>เพิ่มนักเรียน</span></button></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[600px]"><thead class="bg-gray-50 dark:bg-gray-700/50"><tr><th id="student-id-header" onclick="sortStudentTable()" class="p-3 sortable-header">รหัสนักเรียน <i data-lucide="arrow-down-up" class="inline-block w-4 h-4"></i></th><th class="p-3">ชื่อ-สกุล</th><th class="p-3">ชั้นเรียน</th><th class="p-3 text-center">จัดการ</th></tr></thead><tbody id="student-table-body" class="divide-y divide-gray-200 dark:divide-gray-700"></tbody></table></div></div>
             </div>
 
+            <!-- Report Tab -->
             <div id="content-report" class="hidden">
                 <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md space-y-4">
                     <h2 class="text-xl font-bold">รายงานสถิติการมาเรียน</h2>
+                    <!-- Filters -->
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div>
                             <label for="report-class-filter" class="block font-medium mb-1 text-sm">เลือกชั้นเรียน:</label>
@@ -213,6 +232,7 @@
                         </button>
                     </div>
                     
+                    <!-- Report Table -->
                     <div id="report-results-container" class="hidden">
                         <h3 class="text-lg font-semibold mt-6 mb-2" id="report-title">ผลลัพธ์</h3>
                         <div class="overflow-x-auto">
@@ -253,6 +273,7 @@
         </main>
     </div>
 
+    <!-- Student Modal -->
     <div id="student-modal" class="fixed inset-0 bg-gray-800 bg-opacity-70 flex items-center justify-center p-4 z-40 hidden"><div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 md:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar"><h2 id="modal-title" class="text-2xl font-bold mb-6">เพิ่มข้อมูลนักเรียน</h2><form id="student-form" onsubmit="handleStudentFormSubmit(event)"><input type="hidden" id="student-row-index"><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label for="student-id" class="block font-medium mb-2">รหัสนักเรียน</label><input type="text" id="student-id" class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg p-3" required><label for="student-name" class="block font-medium mb-2 mt-4">ชื่อ-สกุล</label><input type="text" id="student-name" class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg p-3" required><label for="student-class" class="block font-medium mb-2 mt-4">ชั้นเรียน</label><input type="text" id="student-class" class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-lg p-3" required></div><div class="flex flex-col"><label class="block font-medium mb-2">รูปภาพนักเรียน</label><div id="input-upload" class="flex flex-col items-center"><div class="w-full max-w-xs mx-auto aspect-[4/3] bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden"><img id="image-preview" src="https://placehold.co/400x300/e2e8f0/475569?text=Image" class="w-full h-full object-cover"></div><input type="file" id="image-upload-input" accept="image/*" class="hidden"><button type="button" onclick="document.getElementById('image-upload-input').click()" class="bg-indigo-600 text-white px-4 py-2 mt-4 rounded-lg hover:bg-indigo-700 w-full max-w-xs">เลือกไฟล์รูปภาพ</button></div></div></div><input type="hidden" id="student-image-data"><div class="flex justify-end space-x-4 mt-8"><button type="button" onclick="closeStudentModal()" class="bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300 px-6 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">ยกเลิก</button><button type="submit" id="form-submit-btn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">บันทึก</button></div></form></div></div>
 
     <script>
@@ -864,7 +885,7 @@
             const linePreview = document.getElementById('line-preview-data');
             const sendLineBtn = document.getElementById('send-line-btn');
 
-            reportTableBody.innerHTML = '<tr><td colspan="9" class="text-center p-8"><div class="loader w-8 h-8 rounded-full border-4 border-gray-200 mx-auto"></div></td></tr>';
+            reportTableBody.innerHTML = '<tr><td colspan="7" class="text-center p-8"><div class="loader w-8 h-8 rounded-full border-4 border-gray-200 mx-auto"></div></td></tr>';
             linePreview.innerHTML = '<p class="text-gray-500">กำลังโหลดข้อมูล...</p>';
             sendLineBtn.disabled = true;
             document.getElementById('report-results-container').classList.remove('hidden');
@@ -883,7 +904,7 @@
 
                     reportTableBody.innerHTML = '';
                     if (summary.length === 0) {
-                        reportTableBody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-gray-500">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
+                        reportTableBody.innerHTML = '<tr><td colspan="7" class="text-center p-8 text-gray-500">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
                         linePreview.innerHTML = '<p class="text-gray-500">ไม่พบข้อมูล</p>';
                         return;
                     }
@@ -908,7 +929,7 @@
                     throw new Error(response.error);
                 }
             } catch(err) {
-                reportTableBody.innerHTML = `<tr><td colspan="9" class="text-center p-8 text-red-500">เกิดข้อผิดพลาด: ${err}</td></tr>`;
+                reportTableBody.innerHTML = `<tr><td colspan="7" class="text-center p-8 text-red-500">เกิดข้อผิดพลาด: ${err}</td></tr>`;
                 linePreview.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาด</p>`;
             }
         }
@@ -1054,3 +1075,4 @@
     </script>
 </body>
 </html>
+
