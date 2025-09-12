@@ -114,7 +114,7 @@
                         <i data-lucide="camera"></i><span>เริ่มเช็คชื่อ</span>
                     </button>
                     <button id="manual-check-btn" onclick="startManualCheck()" class="mt-4 bg-gray-600 text-white px-8 py-3 rounded-full hover:bg-gray-700 text-lg font-semibold flex items-center justify-center mx-auto gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-                        <i data-lucide="list-checks"></i><span>เช็คชื่อด้วยตนเอง</span>
+                        <i data-lucide="list-checks"></i><span>เช็คชื่อ/แก้ไข ด้วยตนเอง</span>
                     </button>
                 </div>
                 
@@ -486,10 +486,7 @@
         
         function startScanning() {
             const selectedSubject = document.getElementById('subject-select').value;
-            if (!selectedSubject) {
-                alert('กรุณาเลือกรายวิชาก่อน');
-                return;
-            }
+            if (!selectedSubject) { alert('กรุณาเลือกรายวิชาก่อน'); return; }
             currentSubject = selectedSubject; 
             document.getElementById('current-subject-display').innerText = `| วิชา: ${currentSubject}`;
             checkedInToday.clear();
@@ -500,55 +497,120 @@
             startVideo();
         }
 
-        function startManualCheck() {
+        // [MODIFIED] Manual check now fetches existing data first
+        async function startManualCheck() {
             const selectedSubject = document.getElementById('subject-select').value;
-            if (!selectedSubject) {
-                alert('กรุณาเลือกรายวิชาก่อน');
-                return;
-            }
+            if (!selectedSubject) { alert('กรุณาเลือกรายวิชาก่อน'); return; }
+            
             currentSubject = selectedSubject;
             document.getElementById('current-subject-display').innerText = `| วิชา: ${currentSubject}`;
             checkedInToday.clear();
+            
+            // Fetch today's records for this subject
+            try {
+                const response = await apiCall({ 
+                    action: 'getTodaysAttendanceBySubject', 
+                    data: { subject: currentSubject, date: new Date().toISOString().split('T')[0] } 
+                });
+
+                if (response.success && response.data) {
+                    response.data.forEach(rec => {
+                        // The key must be a string for consistency
+                        checkedInToday.set(String(rec.studentid), rec);
+                    });
+                }
+            } catch (error) {
+                alert('ไม่สามารถดึงข้อมูลการเช็คชื่อเดิมได้');
+                console.error('Error fetching today\'s attendance:', error);
+            }
+
             document.getElementById('start-scan-section').classList.add('hidden');
             document.getElementById('scanning-section').classList.add('hidden');
             populateAttendanceList();
             document.getElementById('absence-management-section').classList.remove('hidden');
         }
 
-        // [MODIFIED] Creates buttons with a consistent gray style
+        // [MODIFIED] To show existing status + edit button, or the 3 status buttons
         function populateAttendanceList() {
             const studentList = document.getElementById('absent-list');
             studentList.innerHTML = '';
             
             if (students.length > 0) {
                 students.forEach(student => {
-                    const isCheckedIn = checkedInToday.has(student.studentid);
-                    let statusHtml;
-
-                    // Define base classes for all buttons
-                    const buttonBaseClasses = "px-3 py-1 text-sm rounded-full transition-colors duration-200";
-                    const defaultButtonClasses = "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600";
-                    
-                    if (isCheckedIn && !document.getElementById(`status-buttons-${student.studentid}`)) {
-                        // This case is for when a student is found via face scan.
-                        const record = checkedInToday.get(student.studentid);
-                        statusHtml = `<p class="font-semibold text-sm text-green-500">สถานะ: ${record.status} (สแกนแล้ว)</p>`;
-                    } else {
-                        // This case is for manual check-in. Create all three buttons with the default gray style.
-                        statusHtml = `<div class="flex gap-2 items-center" id="status-buttons-${student.studentid}">
-                                        <button onclick="markStatus('${student.studentid}', 'มาเรียน')" class="${buttonBaseClasses} ${defaultButtonClasses}">มาเรียน</button>
-                                        <button onclick="markStatus('${student.studentid}', 'ขาด')" class="${buttonBaseClasses} ${defaultButtonClasses}">ขาด</button>
-                                        <button onclick="markStatus('${student.studentid}', 'ลา')" class="${buttonBaseClasses} ${defaultButtonClasses}">ลา</button>
-                                      </div>`;
-                    }
-
                     const item = document.createElement('div');
                     item.className = 'flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg';
-                    item.innerHTML = `<div class="flex items-center gap-3"><img src="${student.imagedatabase64 || 'https://placehold.co/40x40'}" class="w-10 h-10 rounded-full object-cover"><div><p class="font-medium">${student.name}</p><p class="text-sm text-gray-500">${student.studentid}</p></div></div>${statusHtml}`;
+                    item.id = `student-row-${student.studentid}`;
+                    
+                    const studentInfoHtml = `
+                        <div class="flex items-center gap-3">
+                            <img src="${student.imagedatabase64 || 'https://placehold.co/40x40'}" class="w-10 h-10 rounded-full object-cover">
+                            <div>
+                                <p class="font-medium">${student.name}</p>
+                                <p class="text-sm text-gray-500">${student.studentid}</p>
+                            </div>
+                        </div>`;
+
+                    item.innerHTML = studentInfoHtml + `<div class="flex items-center gap-2" id="status-container-${student.studentid}"></div>`;
                     studentList.appendChild(item);
+                    
+                    // Render the correct status controls for this student
+                    renderStudentStatusControls(student.studentid);
                 });
             }
         }
+
+        // [NEW] Helper function to render the status part of a student row
+        function renderStudentStatusControls(studentId) {
+            const statusContainer = document.getElementById(`status-container-${studentId}`);
+            if (!statusContainer) return;
+
+            const existingRecord = checkedInToday.get(String(studentId));
+
+            if (existingRecord) {
+                let statusColor = 'text-gray-500';
+                if (existingRecord.status === 'มาเรียน') statusColor = 'text-green-600 dark:text-green-400';
+                else if (existingRecord.status === 'ขาด') statusColor = 'text-red-600 dark:text-red-400';
+                else if (existingRecord.status === 'ลา') statusColor = 'text-yellow-600 dark:text-yellow-400';
+
+                statusContainer.innerHTML = `
+                    <p class="font-semibold text-sm ${statusColor}">${existingRecord.status}</p>
+                    <button onclick="editStatus('${studentId}')" class="text-blue-600 hover:text-blue-800 text-sm p-1">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    </button>`;
+            } else {
+                const buttonBaseClasses = "px-3 py-1 text-sm rounded-full transition-colors duration-200";
+                const defaultButtonClasses = "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600";
+                statusContainer.innerHTML = `
+                    <div class="flex gap-2 items-center" id="status-buttons-${studentId}">
+                        <button onclick="markStatus('${studentId}', 'มาเรียน')" class="${buttonBaseClasses} ${defaultButtonClasses}">มาเรียน</button>
+                        <button onclick="markStatus('${studentId}', 'ขาด')" class="${buttonBaseClasses} ${defaultButtonClasses}">ขาด</button>
+                        <button onclick="markStatus('${studentId}', 'ลา')" class="${buttonBaseClasses} ${defaultButtonClasses}">ลา</button>
+                    </div>`;
+            }
+            lucide.createIcons();
+        }
+        
+        // [NEW] Function to enable editing for a student's status
+        function editStatus(studentId) {
+            const statusContainer = document.getElementById(`status-container-${studentId}`);
+            if (!statusContainer) return;
+
+            const buttonBaseClasses = "px-3 py-1 text-sm rounded-full transition-colors duration-200";
+            const defaultButtonClasses = "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600";
+            statusContainer.innerHTML = `
+                <div class="flex gap-2 items-center" id="status-buttons-${studentId}">
+                    <button onclick="markStatus('${studentId}', 'มาเรียน')" class="${buttonBaseClasses} ${defaultButtonClasses}">มาเรียน</button>
+                    <button onclick="markStatus('${studentId}', 'ขาด')" class="${buttonBaseClasses} ${defaultButtonClasses}">ขาด</button>
+                    <button onclick="markStatus('${studentId}', 'ลา')" class="${buttonBaseClasses} ${defaultButtonClasses}">ลา</button>
+                </div>`;
+            
+            // Pre-select the current status
+            const existingRecord = checkedInToday.get(String(studentId));
+            if (existingRecord) {
+                markStatus(studentId, existingRecord.status);
+            }
+        }
+
 
         function stopScanning(showStudentList = true) {
             isScanning = false;
@@ -577,63 +639,57 @@
             }
         }
 
-        // [MODIFIED] Changes button style to blue to mimic the active main menu
+        // [MODIFIED] MarkStatus now re-renders the control to show the result + edit button
         function markStatus(studentId, status) {
-            const student = students.find(s => s.studentid === studentId);
+            const student = students.find(s => s.studentid == studentId);
             if (!student) return;
-            const record = { id: student.studentid, name: student.name, class: student.class, timestamp: new Date().toISOString(), location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A', status };
-            checkedInToday.set(studentId, record);
-        
-            const buttonContainer = document.getElementById(`status-buttons-${studentId}`);
-            if (!buttonContainer) return;
-        
-            const allButtons = buttonContainer.querySelectorAll('button');
-            
-            const defaultClasses = ['bg-gray-200', 'dark:bg-gray-700', 'text-gray-600', 'dark:text-gray-300', 'hover:bg-gray-300', 'dark:hover:bg-gray-600'];
-            const selectedClasses = ['bg-blue-600', 'text-white', 'dark:bg-blue-600', 'dark:text-white'];
 
-            allButtons.forEach(btn => {
-                btn.classList.remove(...selectedClasses);
-                btn.classList.add(...defaultClasses);
-            });
+            const record = { 
+                id: student.studentid, 
+                name: student.name, 
+                class: student.class, 
+                timestamp: new Date().toISOString(), 
+                location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A', 
+                status: status,
+                subject: currentSubject // Ensure subject is part of the record
+            };
+            checkedInToday.set(String(student.studentid), record);
         
-            let selectedButton;
-            if (status === 'มาเรียน')      selectedButton = allButtons[0];
-            else if (status === 'ขาด')   selectedButton = allButtons[1];
-            else if (status === 'ลา')    selectedButton = allButtons[2];
-            
-            if (selectedButton) {
-                selectedButton.classList.remove(...defaultClasses);
-                selectedButton.classList.add(...selectedClasses);
-            }
+            // After marking, render the display view (status + edit button)
+            renderStudentStatusControls(student.studentid);
         }
         
+        // [MODIFIED] finishAttendance now sends all records to be replaced on the backend
         async function finishAttendance() {
-            const recordsToSave = [];
-            const timestamp = new Date().toISOString();
-            const location = currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A';
-            
-            const studentsInView = [...document.querySelectorAll('#absent-list > div')].map(div => {
-                const studentIdElement = div.querySelector('.text-sm.text-gray-500');
-                if(!studentIdElement) return null;
-                const studentId = studentIdElement.textContent;
-                return students.find(s => s.studentid == studentId);
-            }).filter(Boolean);
-
-            studentsInView.forEach(student => {
-                if (checkedInToday.has(student.studentid)) {
-                    const record = checkedInToday.get(student.studentid);
-                    record.subject = currentSubject;
-                    recordsToSave.push(record);
-                } else {
-                    recordsToSave.push({ id: student.studentid, name: student.name, class: student.class, subject: currentSubject, timestamp, location, status: 'ขาด' });
+            // Default any student without a record to "Absent"
+            students.forEach(student => {
+                if (!checkedInToday.has(String(student.studentid))) {
+                    const absentRecord = {
+                        id: student.studentid,
+                        name: student.name,
+                        class: student.class,
+                        timestamp: new Date().toISOString(),
+                        location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A',
+                        status: 'ขาด',
+                        subject: currentSubject
+                    };
+                    checkedInToday.set(String(student.studentid), absentRecord);
                 }
             });
 
+            const recordsToSave = Array.from(checkedInToday.values());
+
             if (recordsToSave.length > 0) {
                  try {
-                    const response = await apiCall({ action: 'recordAttendanceBulk', data: recordsToSave });
-                    alert(response.success ? 'บันทึกข้อมูลการเช็คชื่อทั้งหมดเรียบร้อยแล้ว' : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+                    const response = await apiCall({ 
+                        action: 'recordAttendanceBulk', 
+                        data: {
+                            records: recordsToSave,
+                            subject: currentSubject,
+                            date: new Date().toISOString().split('T')[0]
+                        } 
+                    });
+                    alert(response.success ? 'บันทึกข้อมูลการเช็คชื่อทั้งหมดเรียบร้อยแล้ว' : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + response.error);
                  } catch(err) {
                     alert('เกิดข้อผิดพลาดรุนแรงในการบันทึกข้อมูล');
                  }
@@ -672,7 +728,7 @@
                                 new faceapi.draw.DrawBox(d.detection.box, { label: bestMatch.toString() }).draw(overlay);
                                 if (bestMatch.label !== 'unknown') {
                                     const student = students.find(s => s.name === bestMatch.label);
-                                    if (student && !checkedInToday.has(student.studentid)) handleRecognition(student);
+                                    if (student && !checkedInToday.has(String(student.studentid))) handleRecognition(student);
                                 }
                             });
                         }
@@ -710,17 +766,16 @@
         }
         
         function handleRecognition(student) {
-            const record = { id: student.studentid, name: student.name, class: student.class, timestamp: new Date().toISOString(), location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A', status: 'มาเรียน' };
-            checkedInToday.set(student.studentid, record);
+            const record = { id: student.studentid, name: student.name, class: student.class, timestamp: new Date().toISOString(), location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A', status: 'มาเรียน', subject: currentSubject };
+            checkedInToday.set(String(student.studentid), record);
             
             const successOverlay = document.getElementById('scan-success-overlay');
             document.getElementById('scan-success-name').innerText = student.name;
             successOverlay.classList.remove('hidden');
             setTimeout(() => successOverlay.classList.add('hidden'), 2000);
             
-            // Auto-update list if manual check-in is already displayed
             if (!document.getElementById('absence-management-section').classList.contains('hidden')) {
-                populateAttendanceList();
+                renderStudentStatusControls(student.studentid);
             }
         }
 
