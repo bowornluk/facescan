@@ -11,7 +11,7 @@
     <style>
        body { font-family: 'Inter', 'Kanit', sans-serif; }
         .loader { border-top-color: #3b82f6; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(3GDEGREES); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
@@ -515,6 +515,7 @@
             document.getElementById('absence-management-section').classList.remove('hidden');
         }
 
+        // [MODIFIED] Creates buttons with a consistent gray style
         function populateAttendanceList() {
             const studentList = document.getElementById('absent-list');
             studentList.innerHTML = '';
@@ -524,19 +525,20 @@
                     const isCheckedIn = checkedInToday.has(student.studentid);
                     let statusHtml;
 
-                    if (isCheckedIn) {
+                    // Define base classes for all buttons
+                    const buttonBaseClasses = "px-3 py-1 text-sm rounded-full transition-colors duration-200";
+                    const defaultButtonClasses = "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600";
+                    
+                    if (isCheckedIn && !document.getElementById(`status-buttons-${student.studentid}`)) {
+                        // This case is for when a student is found via face scan.
                         const record = checkedInToday.get(student.studentid);
-                        let statusText = record.status;
-                        let statusColor = 'text-gray-500';
-                        if (statusText === 'มาเรียน') statusColor = 'text-green-500';
-                        else if (statusText === 'ขาด') statusColor = 'text-red-500';
-                        else if (statusText === 'ลา') statusColor = 'text-yellow-500';
-                        statusHtml = `<p class="font-semibold text-sm ${statusColor}">สถานะ: ${statusText}</p>`;
+                        statusHtml = `<p class="font-semibold text-sm text-green-500">สถานะ: ${record.status} (สแกนแล้ว)</p>`;
                     } else {
+                        // This case is for manual check-in. Create all three buttons with the default gray style.
                         statusHtml = `<div class="flex gap-2 items-center" id="status-buttons-${student.studentid}">
-                                        <button onclick="markStatus('${student.studentid}', 'มาเรียน')" class="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-full hover:bg-green-200 dark:bg-green-900/50 dark:text-green-300">มาเรียน</button>
-                                        <button onclick="markStatus('${student.studentid}', 'ขาด')" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-full hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300">ขาด</button>
-                                        <button onclick="markStatus('${student.studentid}', 'ลา')" class="px-3 py-1 text-sm bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300">ลา</button>
+                                        <button onclick="markStatus('${student.studentid}', 'มาเรียน')" class="${buttonBaseClasses} ${defaultButtonClasses}">มาเรียน</button>
+                                        <button onclick="markStatus('${student.studentid}', 'ขาด')" class="${buttonBaseClasses} ${defaultButtonClasses}">ขาด</button>
+                                        <button onclick="markStatus('${student.studentid}', 'ลา')" class="${buttonBaseClasses} ${defaultButtonClasses}">ลา</button>
                                       </div>`;
                     }
 
@@ -575,38 +577,37 @@
             }
         }
 
-        // [MODIFIED] อัปเดตฟังก์ชัน markStatus เพื่อเพิ่มเอฟเฟคการเลือกปุ่มที่ชัดเจน
+        // [MODIFIED] Changes button style to blue to mimic the active main menu
         function markStatus(studentId, status) {
-            // ส่วนของการบันทึกข้อมูล (เหมือนเดิม)
             const student = students.find(s => s.studentid === studentId);
             if (!student) return;
             const record = { id: student.studentid, name: student.name, class: student.class, timestamp: new Date().toISOString(), location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A', status };
             checkedInToday.set(studentId, record);
         
-            // --- ส่วนของการอัปเดตหน้าจอ (เอฟเฟคปุ่มกด) ---
             const buttonContainer = document.getElementById(`status-buttons-${studentId}`);
             if (!buttonContainer) return;
         
-            const presentBtn = buttonContainer.querySelector('button:nth-of-type(1)');
-            const absentBtn = buttonContainer.querySelector('button:nth-of-type(2)');
-            const leaveBtn = buttonContainer.querySelector('button:nth-of-type(3)');
+            const allButtons = buttonContainer.querySelectorAll('button');
+            
+            const defaultClasses = ['bg-gray-200', 'dark:bg-gray-700', 'text-gray-600', 'dark:text-gray-300', 'hover:bg-gray-300', 'dark:hover:bg-gray-600'];
+            const selectedClasses = ['bg-blue-600', 'text-white', 'dark:bg-blue-600', 'dark:text-white'];
 
-            // 1. คืนค่าปุ่มทั้งหมดเป็นสถานะเริ่มต้น
-            presentBtn.className = "px-3 py-1 text-sm bg-green-100 text-green-700 rounded-full hover:bg-green-200 dark:bg-green-900/50 dark:text-green-300";
-            absentBtn.className = "px-3 py-1 text-sm bg-red-100 text-red-700 rounded-full hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300";
-            leaveBtn.className = "px-3 py-1 text-sm bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300";
-
-            // 2. เปลี่ยนสไตล์ปุ่มที่ถูกเลือกให้เด่นชัด
-            if (status === 'มาเรียน') {
-                presentBtn.className = "px-3 py-1 text-sm bg-green-600 text-white rounded-full";
-            } else if (status === 'ขาด') {
-                absentBtn.className = "px-3 py-1 text-sm bg-red-600 text-white rounded-full";
-            } else if (status === 'ลา') {
-                leaveBtn.className = "px-3 py-1 text-sm bg-yellow-500 text-white rounded-full";
+            allButtons.forEach(btn => {
+                btn.classList.remove(...selectedClasses);
+                btn.classList.add(...defaultClasses);
+            });
+        
+            let selectedButton;
+            if (status === 'มาเรียน')      selectedButton = allButtons[0];
+            else if (status === 'ขาด')   selectedButton = allButtons[1];
+            else if (status === 'ลา')    selectedButton = allButtons[2];
+            
+            if (selectedButton) {
+                selectedButton.classList.remove(...defaultClasses);
+                selectedButton.classList.add(...selectedClasses);
             }
         }
         
-        // [VERIFIED] This function correctly saves manual selections
         async function finishAttendance() {
             const recordsToSave = [];
             const timestamp = new Date().toISOString();
@@ -620,12 +621,10 @@
             }).filter(Boolean);
 
             studentsInView.forEach(student => {
-                // If a student was manually marked (present, absent, or leave), their record is in checkedInToday.
                 if (checkedInToday.has(student.studentid)) {
                     const record = checkedInToday.get(student.studentid);
                     record.subject = currentSubject;
                     recordsToSave.push(record);
-                // If a student was NOT manually marked, they are automatically marked as absent.
                 } else {
                     recordsToSave.push({ id: student.studentid, name: student.name, class: student.class, subject: currentSubject, timestamp, location, status: 'ขาด' });
                 }
@@ -718,6 +717,11 @@
             document.getElementById('scan-success-name').innerText = student.name;
             successOverlay.classList.remove('hidden');
             setTimeout(() => successOverlay.classList.add('hidden'), 2000);
+            
+            // Auto-update list if manual check-in is already displayed
+            if (!document.getElementById('absence-management-section').classList.contains('hidden')) {
+                populateAttendanceList();
+            }
         }
 
         function handleImageUpload(event) {
