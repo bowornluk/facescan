@@ -575,38 +575,34 @@
             }
         }
 
-        // [MODIFIED] markStatus updated for better UI feedback with button effects
+        // [MODIFIED] อัปเดตฟังก์ชัน markStatus เพื่อเพิ่มเอฟเฟคการเลือกปุ่มที่ชัดเจน
         function markStatus(studentId, status) {
+            // ส่วนของการบันทึกข้อมูล (เหมือนเดิม)
             const student = students.find(s => s.studentid === studentId);
             if (!student) return;
             const record = { id: student.studentid, name: student.name, class: student.class, timestamp: new Date().toISOString(), location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A', status };
             checkedInToday.set(studentId, record);
         
-            // --- UI Feedback Logic ---
+            // --- ส่วนของการอัปเดตหน้าจอ (เอฟเฟคปุ่มกด) ---
             const buttonContainer = document.getElementById(`status-buttons-${studentId}`);
             if (!buttonContainer) return;
         
-            const allButtons = buttonContainer.querySelectorAll('button');
-            
-            // Reset styles from all buttons first
-            allButtons.forEach(btn => {
-                btn.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2', 'dark:ring-offset-gray-800');
-                btn.classList.add('hover:opacity-80');
-            });
-        
-            // Apply selected style to the clicked button
-            let selectedButton;
+            const presentBtn = buttonContainer.querySelector('button:nth-of-type(1)');
+            const absentBtn = buttonContainer.querySelector('button:nth-of-type(2)');
+            const leaveBtn = buttonContainer.querySelector('button:nth-of-type(3)');
+
+            // 1. คืนค่าปุ่มทั้งหมดเป็นสถานะเริ่มต้น
+            presentBtn.className = "px-3 py-1 text-sm bg-green-100 text-green-700 rounded-full hover:bg-green-200 dark:bg-green-900/50 dark:text-green-300";
+            absentBtn.className = "px-3 py-1 text-sm bg-red-100 text-red-700 rounded-full hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300";
+            leaveBtn.className = "px-3 py-1 text-sm bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-300";
+
+            // 2. เปลี่ยนสไตล์ปุ่มที่ถูกเลือกให้เด่นชัด
             if (status === 'มาเรียน') {
-                selectedButton = allButtons[0];
+                presentBtn.className = "px-3 py-1 text-sm bg-green-600 text-white rounded-full";
             } else if (status === 'ขาด') {
-                selectedButton = allButtons[1];
-            } else { // 'ลา'
-                selectedButton = allButtons[2];
-            }
-        
-            if (selectedButton) {
-                selectedButton.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2', 'dark:ring-offset-gray-800');
-                selectedButton.classList.remove('hover:opacity-80');
+                absentBtn.className = "px-3 py-1 text-sm bg-red-600 text-white rounded-full";
+            } else if (status === 'ลา') {
+                leaveBtn.className = "px-3 py-1 text-sm bg-yellow-500 text-white rounded-full";
             }
         }
         
