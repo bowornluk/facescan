@@ -5,17 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบเช็คชื่อนักเรียนอัจฉริยะ</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://unpkg.com/lucide@latest"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <style>
        body { font-family: 'Inter', 'Kanit', sans-serif; }
         .loader { border-top-color: #3b82f6; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin { to { transform: rotate(3GDEGREES); } }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
@@ -31,7 +27,6 @@
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
 
     <div class="container mx-auto p-4 md:p-6">
-
         <header class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
              <div class="flex items-center space-x-3">
                 <i data-lucide="scan-face" class="text-blue-600 w-8 h-8"></i>
@@ -93,7 +88,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="subject-summary-table-body">
-                                        </tbody>
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
@@ -231,14 +226,14 @@
 
     <script>
         // --- GLOBAL STATE & CONFIG ---
-        let gasWebAppUrl = ''; // Will be set on load
+        let gasWebAppUrl = '';
         let faceMatcher = null, pieChart;
         let students = [], attendance = [], checkedInToday = new Map();
         let isScanning = false, recognitionInterval = null;
         let currentGeoLocation = null;
         let currentSubject = '';
         let lastReportDataForLine = [];
-        let studentSortOrder = 'asc'; // 'asc' or 'desc'
+        let studentSortOrder = 'asc';
         
         // --- THEME ---
         function applyTheme(theme) {
@@ -275,7 +270,6 @@
                     localStorage.setItem('gasWebAppUrl', gasWebAppUrl);
                 }
             }
-
             await initializeApp();
             getLocation();
             document.getElementById('dashboard-date').valueAsDate = new Date();
@@ -283,7 +277,6 @@
             document.getElementById('summary-period').addEventListener('change', renderDashboard);
             document.getElementById('image-upload-input').addEventListener('change', handleImageUpload);
         };
-
         async function initializeApp() {
             try {
                 if (typeof faceapi === 'undefined') throw new Error('face-api.js has not been loaded.');
@@ -405,12 +398,9 @@
             }
         }
 
-        // [MODIFIED] Complete rewrite of renderDashboard to remove "late" logic
         async function renderDashboard() {
             const selectedDate = document.getElementById('dashboard-date').value;
             const period = document.getElementById('summary-period').value;
-
-            // --- RENDER PIE CHART AND OVERALL STATS ---
             let filteredForOverall;
             if (period === 'day') { filteredForOverall = attendance.filter(rec => new Date(rec.timestamp).toDateString() === new Date(selectedDate).toDateString()); } 
             else if (period === 'week') { const startOfWeek = new Date(selectedDate); startOfWeek.setDate(new Date(selectedDate).getDate() - new Date(selectedDate).getDay()); startOfWeek.setHours(0,0,0,0); const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6); endOfWeek.setHours(23, 59, 59, 999);
@@ -434,7 +424,6 @@
             document.getElementById('stat-absent').innerText = absentOrLeaveCount;
             renderPieChart(presentCount, absentOrLeaveCount);
             
-            // --- RENDER SUBJECT SUMMARY TABLE ---
             try {
                 const response = await apiCall({ action: 'getDashboardSummary', data: { date: selectedDate, period: period } });
                 const tableBody = document.getElementById('subject-summary-table-body');
@@ -458,7 +447,6 @@
             }
         }
         
-        // [MODIFIED] Complete rewrite of renderPieChart for 2 segments
         function renderPieChart(present, absent) {
             const pieCanvas = document.getElementById('attendance-pie-chart');
             if (!pieCanvas) return;
@@ -486,7 +474,6 @@
                         subjectSelect.appendChild(option);
                     });
                 }
-                // [MODIFIED] Enable both buttons on change
                 subjectSelect.onchange = () => {
                     const hasValue = !!subjectSelect.value;
                     startScanBtn.disabled = !hasValue;
@@ -513,7 +500,6 @@
             startVideo();
         }
 
-        // [NEW] Function for starting manual check-in
         function startManualCheck() {
             const selectedSubject = document.getElementById('subject-select').value;
             if (!selectedSubject) {
@@ -529,7 +515,6 @@
             document.getElementById('absence-management-section').classList.remove('hidden');
         }
 
-        // [NEW & REFACTORED] Function to build the student status list
         function populateAttendanceList() {
             const studentList = document.getElementById('absent-list');
             studentList.innerHTML = '';
@@ -563,7 +548,6 @@
             }
         }
 
-        // [MODIFIED] stopScanning now uses the new populateAttendanceList function
         function stopScanning(showStudentList = true) {
             isScanning = false;
             if (recognitionInterval) clearInterval(recognitionInterval);
@@ -578,7 +562,6 @@
             document.getElementById('video-loader').style.display = 'flex';
             document.getElementById('video-wrapper').classList.add('hidden');
             document.getElementById('scanning-section').classList.add('hidden');
-            
             if (!showStudentList) {
                 document.getElementById('start-scan-section').classList.remove('hidden');
                 return;
@@ -592,23 +575,42 @@
             }
         }
 
-        // [MODIFIED] markStatus updated for better UI feedback
+        // [MODIFIED] markStatus updated for better UI feedback with button effects
         function markStatus(studentId, status) {
             const student = students.find(s => s.studentid === studentId);
             if (!student) return;
             const record = { id: student.studentid, name: student.name, class: student.class, timestamp: new Date().toISOString(), location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A', status };
             checkedInToday.set(studentId, record);
-           
+        
+            // --- UI Feedback Logic ---
             const buttonContainer = document.getElementById(`status-buttons-${studentId}`);
-            if (buttonContainer) {
-                let colorClass = '';
-                if (status === 'มาเรียน') colorClass = 'text-green-500';
-                else if (status === 'ขาด') colorClass = 'text-red-500';
-                else colorClass = 'text-yellow-500';
-                buttonContainer.innerHTML = `<p class="font-semibold text-sm ${colorClass}">บันทึกเป็น: ${status}</p>`;
+            if (!buttonContainer) return;
+        
+            const allButtons = buttonContainer.querySelectorAll('button');
+            
+            // Reset styles from all buttons first
+            allButtons.forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2', 'dark:ring-offset-gray-800');
+                btn.classList.add('hover:opacity-80');
+            });
+        
+            // Apply selected style to the clicked button
+            let selectedButton;
+            if (status === 'มาเรียน') {
+                selectedButton = allButtons[0];
+            } else if (status === 'ขาด') {
+                selectedButton = allButtons[1];
+            } else { // 'ลา'
+                selectedButton = allButtons[2];
+            }
+        
+            if (selectedButton) {
+                selectedButton.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2', 'dark:ring-offset-gray-800');
+                selectedButton.classList.remove('hover:opacity-80');
             }
         }
         
+        // [VERIFIED] This function correctly saves manual selections
         async function finishAttendance() {
             const recordsToSave = [];
             const timestamp = new Date().toISOString();
@@ -622,10 +624,12 @@
             }).filter(Boolean);
 
             studentsInView.forEach(student => {
+                // If a student was manually marked (present, absent, or leave), their record is in checkedInToday.
                 if (checkedInToday.has(student.studentid)) {
                     const record = checkedInToday.get(student.studentid);
                     record.subject = currentSubject;
                     recordsToSave.push(record);
+                // If a student was NOT manually marked, they are automatically marked as absent.
                 } else {
                     recordsToSave.push({ id: student.studentid, name: student.name, class: student.class, subject: currentSubject, timestamp, location, status: 'ขาด' });
                 }
@@ -720,7 +724,6 @@
             setTimeout(() => successOverlay.classList.add('hidden'), 2000);
         }
 
-        // --- STUDENT MODAL & PHOTO UPLOAD ---
         function handleImageUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -764,11 +767,11 @@
         async function loadStudentDataForTable() {
             try {
                 await loadStudentData();
-                studentSortOrder = 'desc'; // Set to desc so the first click sorts to asc
+                studentSortOrder = 'desc';
                 sortStudentTable();
             } catch(err) {
                  console.error('Error loading students for table:', err);
-                 students = []; // Clear students array on error
+                 students = [];
                  renderStudentTable();
             }
         }
@@ -858,7 +861,6 @@
             }
         }
         
-        // --- REPORTS ---
         function loadDataForReportFilters() {
             const classFilter = document.getElementById('report-class-filter');
             if (classFilter.options.length > 1) return;
@@ -897,7 +899,6 @@
                     }
 
                     summary.forEach(item => {
-                        // [MODIFIED] Removed item.late from the table row
                         const row = `<tr>
                                 <td class="p-3 text-left">${item.class}</td>
                                 <td class="p-3 text-left">${item.subject}</td>
@@ -943,7 +944,6 @@
             }
         }
 
-        // --- UTILITIES ---
         function getLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
